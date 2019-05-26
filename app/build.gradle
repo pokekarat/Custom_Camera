@@ -4,7 +4,7 @@ android {
     compileSdkVersion 27
     defaultConfig {
         applicationId "com.example.parsaniahardik.custom_camera"
-        minSdkVersion 15
+        minSdkVersion 24
         targetSdkVersion 22
         versionCode 1
         versionName "1.0"
@@ -20,6 +20,9 @@ android {
         targetCompatibility 1.8
         sourceCompatibility 1.8
     }
+    configurations.all {
+        resolutionStrategy.force 'com.google.code.findbugs:jsr305:3.0.2'
+    }
 }
 
 dependencies {
@@ -29,6 +32,13 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
-
+    implementation 'org.jcodec:jcodec:0.2.3'
     implementation 'com.squareup.picasso:picasso:2.4.0'
+    implementation 'org.jcodec:jcodec-android:0.2.3'
+    implementation 'com.github.dbof10:Bitmp4:0.1'
+    implementation "io.reactivex.rxjava2:rxjava:2.2.3"
+    implementation 'io.reactivex.rxjava2:rxandroid:2.1.0'
+
+
+
 }

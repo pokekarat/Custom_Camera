@@ -1,12 +1,17 @@
 package com.example.parsaniahardik.custom_camera;
 
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.ImageFormat;
+import android.graphics.RectF;
 import android.hardware.Camera;
-import android.opengl.GLSurfaceView;
+import android.media.AudioFormat;
+import android.media.MediaCodec;
+import android.media.MediaCodecInfo;
+import android.media.MediaFormat;
+import android.media.MediaMuxer;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
@@ -18,16 +23,17 @@ import android.view.PixelCopy;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.CompoundButton;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
-import android.widget.ToggleButton;
 
-import junit.framework.Assert;
+import com.ctech.bitmp4.Encoder;
+import com.ctech.bitmp4.MP4Encoder;
+
+import org.jcodec.api.SequenceEncoder;
+import org.jcodec.common.model.ColorSpace;
+import org.jcodec.common.model.Picture;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -36,31 +42,50 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.IntBuffer;
-import java.util.Date;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
 import java.util.Random;
 
-import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.opengles.GL10;
+import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.functions.Function;
+
+import static android.media.MediaCodec.MetricsConstants.HEIGHT;
+import static android.media.MediaCodec.MetricsConstants.WIDTH;
+import static android.media.MediaExtractor.MetricsConstants.MIME_TYPE;
+import static android.media.MediaPlayer.MetricsConstants.MIME_TYPE_AUDIO;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.jcodec.codecs.s302.S302MDecoder.SAMPLE_RATE;
+
 
 public class MainActivity extends AppCompatActivity implements SurfaceHolder.Callback {
 
 	protected static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 0;
 	public static Camera camera = null;
 	final Context context = this;
+	int count = 0;
+	Observable exportDisposable;
 	private SurfaceView SurView;
 	private SurfaceHolder camHolder;
 	private boolean previewRunning;
 	private RelativeLayout CamView;
 	private Bitmap inputBMP = null, bmp, bmp1;
 	private ImageView camera_image;
+	SequenceEncoder encoder;
 	private Camera.PictureCallback mPicture = new Camera.PictureCallback() {   //THIS METHOD AND THE METHOD BELOW
 		//CONVERT THE CAPTURED IMAGE IN A JPG FILE AND SAVE IT
 
 		@Override
 		public void onPictureTaken(byte[] data, Camera camera) {
 
-			File dir_image2 = new File(Environment.getExternalStorageDirectory() +
+			//long tStart = System.currentTimeMillis();
+			takePhoto();
+			//long tEnd = System.currentTimeMillis();
+			//long tDelta = tEnd - tStart;
+			//double elapsedSeconds = tDelta / 1000.0;
+			//Log.d("Custom_Camera","Use time = " +String.valueOf(elapsedSeconds));
+
+			/*File dir_image2 = new File(Environment.getExternalStorageDirectory() +
 				  File.separator + "Ultimate Entity Detector");
 			dir_image2.mkdirs();  //AGAIN CHOOSING FOLDER FOR THE PICTURE(WHICH IS LIKE A SURFACEVIEW
 			//SCREENSHOT)
@@ -89,8 +114,8 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 			camera_image.setImageBitmap(bmp1); //SETTING THE BitMap AS IMAGE IN AN IMAGEVIEW(SOMETHING
 			//LIKE A BACKGROUNG FOR THE LAYOUT)
 
-			tmpFile.delete();
-			takePhoto();
+			tmpFile.delete();*/
+
 			//TakeScreenshot();//CALLING THIS METHOD TO TAKE A SCREENSHOT
 			//********* THAT LINE MIGHT CAUSE A CRASH ON SOME PHONES (LIKE XPERIA T)<----(SEE HERE)
 			//IF THAT HAPPENDS USE THE LINE "bmp1 =decodeFile(tmpFile);" WITH THE METHOD BELOW
@@ -118,11 +143,114 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
 		btn.setOnClickListener(new View.OnClickListener() {    //THE BUTTON CODE
 			public void onClick(View v) {
-				camera.takePicture(null, null, mPicture);//TAKING THE PICTURE
-				//THE mPicture IS CALLED
-				//WHICH IS THE LAST METHOD(SEE BELOW)
+				//camera.takePicture(null, null, mPicture);//TAKING THE PICTURE
+				new Thread(new Runnable() {
+					@Override
+					public void run() {
+						File dir_image = new File(Environment.getExternalStorageDirectory() + File.separator + "Ultimate");
+						dir_image.mkdirs();
+						File exportedFile = new File(dir_image, "test.mp4");
+						//bitmapToVideoEncoder.startEncoding(SurView.getWidth(), SurView.getHeight(), exportedFile);
+						//bitmapToVideoEncoder.startEncoding(800, 600, exportedFile);
+
+						try {
+							encoder = SequenceEncoder.create25Fps(exportedFile);
+
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+
+						for(int i=0; i<25; ++i) {
+							takePhoto();
+							try {
+								Thread.sleep(40);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+						}
+						try {
+							encoder.finish();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				}).start();
+
 			}
 		});
+
+
+
+
+		Button toMP4 = findViewById(R.id.button2);
+		toMP4.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				/*Encoder encoder = new MP4Encoder();
+				encoder.setFrameDelay(50);
+				File dir_image = new File(Environment.getExternalStorageDirectory() + File.separator + "Ultimate");
+				File exportedFile = new File(dir_image, "export.mp4");
+				if (exportedFile.exists()) {
+					exportedFile.delete();
+				}
+				encoder.setOutputFilePath(exportedFile.getPath());
+				encoder.setOutputSize(400, 300);
+				encoder.startEncode();
+				for(int i=0; i<=4; i++) {
+					String imageInSD = Environment.getExternalStorageDirectory() +
+						  File.separator + "Ultimate/" +
+						  "pic_" + i + ".jpeg";
+					Bitmap bitmap = BitmapFactory.decodeFile(imageInSD);
+					int bc = bitmap.getByteCount();
+					encoder.addFrame(bitmap);
+				}
+				encoder.stopEncode();*/
+
+
+				/*BitmapToVideoEncoder bitmapToVideoEncoder = new BitmapToVideoEncoder(new BitmapToVideoEncoder.IBitmapToVideoEncoderCallback() {
+					@Override
+					public void onEncodingComplete(File outputFile) {
+						//Toast.makeText(this,  "Encoding complete!", Toast.LENGTH_LONG);
+						Toast.makeText(getApplicationContext(),"complete",Toast.LENGTH_LONG).show();
+					}
+				});
+
+				File dir_image = new File(Environment.getExternalStorageDirectory() + File.separator + "Ultimate");
+				File exportedFile = new File(dir_image, "export.mp4");
+				if (exportedFile.exists()) {
+					exportedFile.delete();
+				}
+				bitmapToVideoEncoder.startEncoding(400,300, exportedFile);
+				for(int i=0; i<=4; i++) {
+					String imageInSD = Environment.getExternalStorageDirectory() +
+						  File.separator + "Ultimate/" +
+						  "pic_" + i + ".jpeg";
+					Bitmap bitmap = BitmapFactory.decodeFile(imageInSD);
+					int bc = bitmap.getByteCount();
+					bitmapToVideoEncoder.queueFrame(bitmap);
+				}
+				bitmapToVideoEncoder.stopEncoding();*/
+
+
+			}
+		});
+
+
+	}
+
+	BitmapToVideoEncoder bitmapToVideoEncoder = new BitmapToVideoEncoder(new BitmapToVideoEncoder.IBitmapToVideoEncoderCallback() {
+		@Override
+		public void onEncodingComplete(File outputFile) {
+			//Toast.makeText(this,  "Encoding complete!", Toast.LENGTH_LONG);
+			//Toast.makeText(getApplicationContext(),"complete",Toast.LENGTH_LONG).show();
+		}
+	});
+
+	private Bitmap createBitmapFromView(View v) {
+		Bitmap bitmap = Bitmap.createBitmap(v.getWidth(), v.getHeight(), Bitmap.Config.ARGB_8888);
+		Canvas c = new Canvas(bitmap);
+		v.draw(c);
+		return bitmap;
 	}
 
 	@Override
@@ -134,6 +262,8 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 		Camera.Parameters camParams = camera.getParameters();
 		Camera.Size size = camParams.getSupportedPreviewSizes().get(0);
 		camParams.setPreviewSize(size.width, size.height);
+		camParams.setPictureFormat(ImageFormat.JPEG);
+		camParams.set("jpeg-quality", 100);
 		camera.setParameters(camParams);
 		try {
 			camera.setPreviewDisplay(holder);
@@ -161,6 +291,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 		camera = null;
 	}
 
+	//This function return black screen
 	public void TakeScreenshot() {    //THIS METHOD TAKES A SCREENSHOT AND SAVES IT AS .jpg
 		Random num = new Random();
 		int nu = num.nextInt(1000); //PRODUCING A RANDOM NUMBER FOR FILE NAME
@@ -237,36 +368,62 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 		return b;
 	}
 
-	private void takePhoto() {
+	public Bitmap takePhoto() {
+
 
 		// Create a bitmap the size of the scene view.
-		final Bitmap bitmap = Bitmap.createBitmap(SurView.getWidth(), SurView.getHeight(),
-			  Bitmap.Config.ARGB_8888);
-
+		//final Bitmap bitmap = Bitmap.createBitmap(SurView.getWidth(), SurView.getHeight(), Bitmap.Config.ARGB_8888);
+		final Bitmap bitmap = Bitmap.createBitmap(128,1024, Bitmap.Config.ARGB_8888);
 		// Create a handler thread to offload the processing of the image.
 		final HandlerThread handlerThread = new HandlerThread("PixelCopier");
 		handlerThread.start();
 
 		// Make the request to copy.
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-			PixelCopy.request(SurView, bitmap, (copyResult) -> {
+			PixelCopy.request(SurView, bitmap, (int copyResult) -> {
+				//bitmapToVideoEncoder.queueFrame(bitmap);
 				if (copyResult == PixelCopy.SUCCESS) {
-					Log.e("test",bitmap.toString());
+					Log.e("test", bitmap.toString());
+					/*int w = bitmap.getWidth();
+					int h = bitmap.getHeight();
+					byte[][] pixels = new byte[w][h];
+					for(int i=0; i<w; i++){
+						for(int j=0; j<h; j++){
+							pixels[i][j] = (byte)bitmap.getPixel(i,j);
+						}
+					}
+					Picture picture = Picture.createPicture(bitmap.getWidth(),bitmap.getHeight(),pixels,ColorSpace.RGB);
+					try {
+						encoder.encodeNativeFrame(picture);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}*/
+
+
+
 					//String name = String.valueOf(System.currentTimeMillis() + ".jpg");
+
+					long tStart = System.nanoTime();
 
 					ByteArrayOutputStream bos = new ByteArrayOutputStream();
 					bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bos);
 					byte[] bitmapdata = bos.toByteArray();
 					ByteArrayInputStream fis = new ByteArrayInputStream(bitmapdata);
 
-					String picId = "1"; // String.valueOf(nu);
-					String myfile = "Ghost" + picId + ".jpeg";
+					String picId = String.valueOf(count);
+					++count;
+					String myfile = "pic_" + picId + ".jpeg";
+					/*if(count == 125){
+						//bitmapToVideoEncoder.stopEncoding();
+						try {
+							encoder.finish();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}*/
 
-					File dir_image = new File(Environment.getExternalStorageDirectory() +//<---
-						  File.separator + "Ultimate");          //<---
-					dir_image.mkdirs();                                                  //<---
-					//^IN THESE 3 LINES YOU SET THE FOLDER PATH/NAME . HERE I CHOOSE TO SAVE
-					//THE FILE IN THE SD CARD IN THE FOLDER "Ultimate Entity Detector"
+					File dir_image = new File(Environment.getExternalStorageDirectory() + File.separator + "Ultimate");          //<---
+					dir_image.mkdirs();
 
 					try {
 						File tmpFile = new File(dir_image, myfile);
@@ -279,16 +436,19 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 						}
 						fis.close();
 						fos.close();
-						Toast.makeText(getApplicationContext(),
-							  "The file is saved at :SD/Ultimate", Toast.LENGTH_LONG).show();
+
 						bmp1 = null;
-						camera_image.setImageBitmap(bmp1); //RESETING THE PREVIEW
-						camera.startPreview();             //RESETING THE PREVIEW
+						camera.startPreview();
+
 					} catch (FileNotFoundException e) {
 						e.printStackTrace();
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
+					long tEnd = System.nanoTime();
+					long tDelta = tEnd - tStart;
+					double elapsedSeconds = tDelta / 1000000000.0;
+					Log.d("Custom_Camera", "Use time = " + String.valueOf(elapsedSeconds));
 
 				} else {
 
@@ -298,7 +458,10 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 				}
 			}, new Handler(handlerThread.getLooper()));
 		}
+		return bitmap;
 	}
+
+
 }
 
 
