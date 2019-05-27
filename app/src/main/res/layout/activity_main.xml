@@ -6,8 +6,8 @@
 
     <SurfaceView
         android:id="@+id/sview"
-        android:layout_width="800dp"
-        android:layout_height="600dp"
+        android:layout_width="960dp"
+        android:layout_height="720dp"
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
         android:foregroundGravity="center_vertical|center_horizontal" />

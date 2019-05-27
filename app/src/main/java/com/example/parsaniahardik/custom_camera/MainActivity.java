@@ -73,7 +73,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 						for(int i=1; i<=125; ++i) {
 							takePhoto();
 							try {
-								Thread.sleep(40);
+								Thread.sleep(20);
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}
@@ -101,7 +101,8 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 						File dir_image = new File(Environment.getExternalStorageDirectory() + File.separator + "Ultimate");
 						dir_image.mkdirs();
 						File exportedFile = new File(dir_image, "test2.mp4");
-						FFmpeg.execute("-framerate 24 -i /storage/emulated/0/Ultimate/pic%03d.jpeg " +exportedFile.getPath());
+						//Found candidate encoder OMX.google.vp8.encoder
+						FFmpeg.execute("-framerate 24 -i /storage/emulated/0/Ultimate/pic%03d.jpeg -b:v 2M " +exportedFile.getPath());
 						//FFmpeg.execute("-r 24 -f image2 -s 1280x720 -i /storage/emulated/0/Ultimate/pic%03d.jpeg " +exportedFile.getPath());
 					}
 				}).start();
@@ -165,7 +166,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
 		// Create a bitmap the size of the scene view.
 		//final Bitmap bitmap = Bitmap.createBitmap(SurView.getWidth(), SurView.getHeight(), Bitmap.Config.ARGB_8888);
-		final Bitmap bitmap = Bitmap.createBitmap(960,720, Bitmap.Config.ARGB_8888); //work = 640x360
+		final Bitmap bitmap = Bitmap.createBitmap(1280,720, Bitmap.Config.ARGB_8888); //work = 640x360
 		// Create a handler thread to offload the processing of the image.
 		final HandlerThread handlerThread = new HandlerThread("PixelCopier");
 		handlerThread.start();
